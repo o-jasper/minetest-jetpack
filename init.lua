@@ -6,7 +6,15 @@
 
 -- 2016 o-jasper; Jasper den Ouden
 
---[[  TODO something fancy..
+--[[ TODO
+
+* Crafting.
+* Fuel (crafting)
+* Other sounds. (seems fairly good actually!)
+* Models.
+* More particles.(client-side-only particles possible?)
+
+TODO
 minetest.register_craft({
       output = 'jetpack:jetpack',
       recipe = {
@@ -20,11 +28,22 @@ minetest.register_craft({
 
 -- Rates at which they affect thrust direction.
 local thrust = 10
-local rates = { left = -2, right = 2, up=3, down=-2, jump=6, sneak=2 }
+local rates = { left = -2, right = 2, up=6, down=-2, jump=6, sneak=-4 }
 -- Acceleration provided.
 local gravity, air_friction, ground_friction = 1,0.00001,0.1
 
-local function jetpack_timestep(cont, dir, object, ts)
+-- Somewhat randomly times thrust sounds.
+local function thrust_sounds(self, ts)
+   local function new_t() return 0.1+math.log(1+math.random()/60) end
+   self.t = (self.t or new_t()) - ts
+   if self.t < 0 then
+      self.t = new_t()
+      minetest.sound_play({name = "fire_extinguish_flame"}, { pos = pos })
+   end
+end
+
+local function jetpack_timestep(self, cont, dir, object, ts)
+   local pos = object:getpos()
 
    local v = object:getvelocity()
    local vlen = math.sqrt(v.x^2 + v.y^2 + v.z^2)
@@ -53,6 +72,8 @@ local function jetpack_timestep(cont, dir, object, ts)
       local r = add_if("right") + add_if("left")
 
       if any then -- Any thrust.
+         thrust_sounds(self, ts)
+
          local factor = thrust*ts/math.sqrt(u*u + f*f + r*r) -- Normalize and acceleration.
          local u,f,r = factor*u, factor*f, factor*r
 
@@ -61,9 +82,9 @@ local function jetpack_timestep(cont, dir, object, ts)
          if dlen > 0 then
             local dx,dz = dir.x/dlen, dir.z/dlen
             to_v = {
-               x = to_v.x + dx*f + dz*r,
-               y = to_v.y + u,
-               z = to_v.z + dz*f - dx*r
+               x = to_v.x + dz*r + dir.x*f,
+               y = to_v.y + u    + dir.y*f,
+               z = to_v.z + dx*r + dir.z*f,
             }
          else
             error("wtf dlen", dir.x, dir.z)
@@ -72,7 +93,6 @@ local function jetpack_timestep(cont, dir, object, ts)
    end
 
    -- Figure if flying into anything
-   local pos = object:getpos()
    local x,y,z = pos.x, pos.y,pos.z
    local function block_rel(dx,dy,dz)
       -- TODO anything you walk through.
@@ -153,7 +173,7 @@ minetest.register_entity("jetpack:jetpack", {
 
   on_step = function(self, dtime)
      local driver = self.driver
-     jetpack_timestep(driver and driver:get_player_control(),
+     jetpack_timestep(self, driver and driver:get_player_control(),
                       driver and driver:get_look_dir(),
                       self.object, dtime)
   end,
