@@ -8,13 +8,39 @@
 
 local jp = jetpack_physics
 
--- Rates at which they affect thrust direction.
-local thrust = 15  -- 1.5 gravity.
-local rates = { left = -2, right = 2, up=6, down=-2, jump=6, sneak=-4 }
--- Acceleration provided.
-local gravity, air_friction = 10, 0.1
+local function setting(name)
+   return minetest.setting_get("jetpack_" .. name)
+end
 
-local ground_bounce, ground_friction = 0.5, 0.1
+local configs = {
+   default = {
+      thrust=15,  -- Total resulting thrust. (1.5G)
+      -- Amount at which diffent buttons change thrust direction.
+      rates = { left = -2, right = 2, up=6, down=-2, jump=6, sneak=-4 },
+      gravity = 10, air_friction = 0.1,
+      ground_bounce = 0.5, ground_friction = 0.1,
+   }
+}
+
+local config_name = setting("config") or "default"
+local use_c = configs[config_name]
+local matched = string.match(config_name, "^(.+):?custom$")
+if matched then
+   configs.custom = {}
+   for k,v in pairs(config[matched] or config.default) do  -- Base on default/given set.
+      configs.custom[k] = v
+   end
+   for _,k in ipairs{"thrust", "gravity", "air_friction",
+                     "ground_bounce", "ground_friction"} do
+      configs.custom[k] = tonumber(setting(k))
+   end
+   use_c = configs.custom
+end
+-- Patch it through.
+local thrust = use_c.thrust
+local rates = use_c.rates
+local gravity, air_friction = use_c.gravity, use_c.air_friction
+local ground_bounce, ground_friction = use_c.ground_bounce, use_c.ground_friction
 
  -- Somewhat randomly times thrust sounds.
 local function thrust_sounds(self, ts)
