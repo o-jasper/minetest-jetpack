@@ -128,7 +128,6 @@ local Jetpack = {
    on_step = jetpack_timestep
 }
 for k,v in pairs(jp.ThrowObj) do Jetpack[k] = Jetpack[k] or v end
-jp.obj_list["jetpack_jetpack:jetpack"] = Jetpack
 
 -- Actual declaring.
 minetest.register_craftitem("jetpack_jetpack:jetpack", JetpackItem)

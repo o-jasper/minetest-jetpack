@@ -71,7 +71,6 @@ local Ball = {
    end
 }
 for k,v in pairs(jp.ThrowObj) do Ball[k] = Ball[k] or v end
-jp.obj_list["jetpack_ball:ball"] = Ball
 
 -- Actual declaring.
 minetest.register_craftitem("jetpack_ball:ball", BallItem)

@@ -9,7 +9,7 @@
 local function dot(v, w)	-- Inproduct.
 	return v.x*w.x + v.y*w.y + v.z*w.z
 end
-local function sqr(x) return dot(x,x) end
+local function sqr(x) return dot(x,x) end  -- Length squared.
 
 -- Modifies speed, just adds bouncing.
 local function normal_bounce(normal, b, to_v)
@@ -72,8 +72,8 @@ local function clear_place(x,y,z)
    if name == "air" then
       return true
    end
-
-   local reg = minetest.registered_nodes[node.name]  -- Pass through plants too.(giving a shot)
+   -- Pass through plants too.(giving a shot)
+   local reg = minetest.registered_nodes[node.name]
    if reg then
       -- TODO can give other properties, like lower bump?
       local drawtype = reg.drawtype
@@ -130,7 +130,6 @@ local ThrowObj = {
   --on_step =  TODO something basic here.
 }
 
-local obj_list = {}
 -- Corresponding item.
 local ThrowItem = {
 	description = "ThrowItem, supposed to be derived-from. Please overwrite description.",
@@ -146,7 +145,7 @@ local ThrowItem = {
      local name = itemstack:get_name()
      local obj = minetest.env:add_entity(pos, name)
      obj:get_luaentity().name = name
-     local Class = obj_list[name]
+     local Class = minetest.registered_entities[name]
      local v, vy = Class.throw_v, Class.throw_vy
      local spd = { x=0,y=0,z=0 } -- placer:getvelocity() (ah well)
      obj:setvelocity{ x=spd.x + v*dir.x, y=spd.y + v*dir.y + vy, z=spd.z + v*dir.z }

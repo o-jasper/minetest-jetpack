@@ -98,7 +98,6 @@ local Hoverboard = {
    on_step = hoverboard_timestep
 }
 for k,v in pairs(jp.ThrowObj) do Hoverboard[k] = Hoverboard[k] or v end
-jp.obj_list["jetpack_hoverboard:hoverboard"] = Hoverboard
 
 minetest.register_craftitem("jetpack_hoverboard:hoverboard", HoverboardItem)
 minetest.register_entity("jetpack_hoverboard:hoverboard", Hoverboard)
