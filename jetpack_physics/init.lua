@@ -23,6 +23,8 @@ local function normal_bounce(normal, b, to_v)
    end
 end
 
+-- TODO for very bouncy objects, it eats speed too fast?
+
 -- Bounces and friction. (modifies speed)
 local function normal_collide(normal, f,b, to_v)
    local inpr = dot(normal, to_v)
@@ -94,7 +96,16 @@ end
 
 -- Object that you kindah throw to place, and just falls down.
 local ThrowObj = {
-  on_rightclick = function(self, clicker, how)
+   throw_v = 2, throw_vy = 1,
+
+  on_activate = function(self, staticdata, dtime_s)
+     self.object:set_armor_groups({immortal=1})
+     if staticdata then
+        self.v = tonumber(staticdata)
+     end
+  end,
+
+   on_punch = function(self, clicker)
      if not clicker or not clicker:is_player() then
         return
      end
@@ -103,29 +114,23 @@ local ThrowObj = {
         clicker:set_detach()
      elseif not self.driver then
         self.driver = clicker
-        ThrowObj_attach(clicker, self.object, how)
-     end
-  end,
-  on_activate = function(self, staticdata, dtime_s)
-     self.object:set_armor_groups({immortal=1})
-     if staticdata then
-        self.v = tonumber(staticdata)
+        ThrowObj_attach(clicker, self.object, nil)  -- TODO
      end
   end,
 
-  on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, direction)
+  on_rightclick = function(self, puncher)
      self.object:remove()
      if puncher and puncher:is_player() then
         -- TODO can use self. something?
         -- Well, shit.
-        print(self.description, "***")
-        puncher:get_inventory():add_item("main", "jetpack_jetpack:jetpack")
+        puncher:get_inventory():add_item("main", self.name)
      end
   end
 
   --on_step =  TODO something basic here.
 }
 
+local obj_list = {}
 -- Corresponding item.
 local ThrowItem = {
 	description = "ThrowItem, supposed to be derived-from. Please overwrite description.",
@@ -133,13 +138,16 @@ local ThrowItem = {
 	stack_max = 1,
 	groups = {},  -- TODO surely groups to put it in.
 
-	on_place = function(itemstack, placer, pointed_thing)
+	on_use = function(itemstack, placer, pointed_thing)
      -- Just throw it a bit.
      local pos,dir = placer:getpos(), placer:get_look_dir()
      pos.x,pos.y,pos.z = pos.x + dir.x,pos.y + dir.y + 1,pos.z + dir.z
 
-     local obj = minetest.env:add_entity(pos, itemstack:get_name())
-     local v, vy = 2, 1
+     local name = itemstack:get_name()
+     local obj = minetest.env:add_entity(pos, name)
+     obj:get_luaentity().name = name
+     local Class = obj_list[name]
+     local v, vy = Class.throw_v, Class.throw_vy
      local spd = { x=0,y=0,z=0 } -- placer:getvelocity() (ah well)
      obj:setvelocity{ x=spd.x + v*dir.x, y=spd.y + v*dir.y + vy, z=spd.z + v*dir.z }
      -- TODO set a name if `:get_name()` not supplied.
@@ -149,7 +157,6 @@ local ThrowItem = {
   end
 }
 
--- Wait do i need to run this first?
 jetpack_physics = {
    normal_bounce = normal_bounce,
    normal_collide = normal_collide,
@@ -157,4 +164,6 @@ jetpack_physics = {
    clear_place = clear_place,
 
    ThrowObj = ThrowObj, ThrowItem = ThrowItem, ThrowObj_attach = ThrowObj_attach,
+
+   obj_list = obj_list,
 }

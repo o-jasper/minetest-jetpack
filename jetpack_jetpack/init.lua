@@ -21,21 +21,8 @@ local configs = {
       ground_bounce = 0.5, ground_friction = 0.1,
    }
 }
+local use_c = jetpack_configs("jetpack", configs)
 
-local config_name = setting("config") or "default"
-local use_c = configs[config_name]
-local matched = string.match(config_name, "^(.+):?custom$")
-if matched then
-   configs.custom = {}
-   for k,v in pairs(config[matched] or config.default) do  -- Base on default/given set.
-      configs.custom[k] = v
-   end
-   for _,k in ipairs{"thrust", "gravity", "air_friction",
-                     "ground_bounce", "ground_friction"} do
-      configs.custom[k] = tonumber(setting(k))
-   end
-   use_c = configs.custom
-end
 -- Patch it through.
 local thrust = use_c.thrust
 local rates = use_c.rates
@@ -136,10 +123,12 @@ local JetpackItem = {
 for k,v in pairs(jp.ThrowItem) do JetpackItem[k] = JetpackItem[k] or v end
 
 local Jetpack = {
+   Item = JetpackItem,
 --   description = "Jetpack",
    on_step = jetpack_timestep
 }
 for k,v in pairs(jp.ThrowObj) do Jetpack[k] = Jetpack[k] or v end
+jp.obj_list["jetpack_jetpack:jetpack"] = Jetpack
 
 -- Actual declaring.
 minetest.register_craftitem("jetpack_jetpack:jetpack", JetpackItem)
