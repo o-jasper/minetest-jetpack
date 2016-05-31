@@ -28,6 +28,7 @@ Hoverboard:
   + Power use.
 
 Other:
+* Player model does not rotate.
 * Get sizes of objects right.
 * Crafting recipes.
 * Use the configs to have different modes.

@@ -38,7 +38,7 @@ local Ball = {
    weight = 4,
 
 --   description = "Ball",
-   on_step2 = function(self, ts)  -- TODO really, the base
+   on_step = function(self, ts)
       local object = self.object
       
       local to_v = jp.apply_air_friction(object:getvelocity(), air_friction, ts)
@@ -58,7 +58,7 @@ local Ball = {
             all = false
          end
       end
-      local d,dh,f,b = 1,0.5, ground_friction, ground_bounce
+      local d,dh,f,b = 0.1,0.1, ground_friction, ground_bounce
       if block_rel( 0, -d,  0) and driver then
          f = 10  -- Mushy parts handle this
          b = 0

@@ -168,7 +168,7 @@ local ThrowObj = {
         clicker:set_detach()
      elseif not self.driver then
         self.driver = clicker
-        ThrowObj_attach(clicker, self.object, nil)  -- TODO
+        ThrowObj_attach(clicker, self.object, nil)
      end
   end,
 

@@ -77,7 +77,7 @@ local function hoverboard_timestep(self, ts)
    end
 
    if any and not all then
-      to_v = jp.normal_collide({x=nx, y=ny, z=nz}, f,0, to_v)  -- Bounceless.
+      to_v = jp.normal_collide({x=nx, y=ny, z=nz}, f,0, to_v)  -- Friction and bounceless.
    end
 
    -- TODO walk if under-speed.(lower speed limit walking rate.)
@@ -93,6 +93,12 @@ local HoverboardItem = {
 for k,v in pairs(jp.ThrowItem) do HoverboardItem[k] = HoverboardItem[k] or v end
 
 local Hoverboard = {
+
+   physical = true,
+   collide_with_object  =true,
+   collisionbox = {-0.1,-0.3,-0.3, 0.3,0.3,0.5},
+   weight = 4,
+
    Item = HoverboardItem,
 --   description = "Hoverboard",
    on_step = hoverboard_timestep
