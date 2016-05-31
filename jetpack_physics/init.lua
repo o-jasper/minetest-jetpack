@@ -66,14 +66,12 @@ local function apply_air_friction(v, air_friction, ts)
 end
 
 -- Kindah whether something can pass through.
-local function clear_place(x,y,z)
-   local node = minetest.env:get_node({x=x, y=y, z=z})
-   local name = node.name
+local function clear_node_name(name)
    if name == "air" then
       return true
    end
    -- Pass through plants too.(giving a shot)
-   local reg = minetest.registered_nodes[node.name]
+   local reg = minetest.registered_nodes[name]
    if reg then
       -- TODO can give other properties, like lower bump?
       local drawtype = reg.drawtype
@@ -81,6 +79,62 @@ local function clear_place(x,y,z)
          return true
       end
    end
+end
+local function clear_place(x,y,z)
+   return clear_node_name(minetest.env:get_node{x=x, y=y, z=z}.name)
+end
+local function clear_node(node)
+   return clear_node_name(node.name)
+end
+
+local abs = math.abs
+local function line_intersect(fx,fy,fz, dx,dy,dz, clear)
+   local clear, factor = clear or clear_node, 1.001
+
+   local lambda, x,y,z = 0, fx,fy,fz
+   while lambda < 1 do
+      local node = minetest.env:get_node{x=x, y=y, z=z}
+      if not clear(node) then  -- Found obstruction, return it.
+         return node, lambda
+      end
+
+      -- Square distance from center of a block, it is 0,5-distance from surface.
+      -- In terms of the movement.
+      local function lfe(x,dx)
+         return (0.5 - abs(x%1 - 0.5))/dx
+      end
+      local lx,ly,lz = fe(x,dx),fe(y,dy),fe(z,dz)
+      -- Smallest nonzero movement.
+      if lx < ly and lx > 0 then
+         if lx < lz or lz <= 0 then -- x now
+            lambda = lambda + factor*lx
+         else  -- z now
+            lambda = lambda + factor*lz
+         end
+      elseif ly < lz and ly > 0 then -- y now.
+         lambda = lambda + factor*ly
+      else -- z now
+         lambda = lambda + math.max(factor*lz, 0.01)
+      end
+      x,y,z = fx + lambda*dx, fy + lambda*dy, fz + lambda*dz  -- To next position.
+   end
+end
+
+local function figure_normal(x,y,z, clear)
+   local clear = clear or clear_node
+
+   local nx,ny,nz = 0,0,0
+   local function block_rel(dx,dy,dz)
+      -- TODO can more specific shapes be taken into account/
+      if not clear(x+dx, y+dy, z+dz) then
+         nx, ny, nz = nx - dx, ny - dy, nz - dz
+      end
+   end
+   block_rel( 0, 0, 1) block_rel( 0, 0,-1)
+   block_rel( 0, 1, 0) block_rel( 0,-1, 0)
+   block_rel( 1, 0, 0) block_rel(-1, 0, 0)
+
+   return nx,ny,nz
 end
 
 local function ThrowObj_attach(driver, object, how)  -- Helper.
@@ -125,9 +179,39 @@ local ThrowObj = {
         -- Well, shit.
         puncher:get_inventory():add_item("main", self.name)
      end
-  end
+  end,
 
-  --on_step =  TODO something basic here.
+  on_step2 = function(self, ts)
+     local Class = minetest.registered_entities[name]
+     local colbox = Class.collisionbox
+
+     local to_v = jp.apply_air_friction(object:getvelocity(), air_friction, ts)
+     local dx,dy,dz = to_v.x*ts,to_v.x*ts,to_v.x*ts
+
+     local pos = object:getpos()
+     local x,y,z = pos.x, pos.y,pos.z
+
+     -- Front-facing first might be better. Or some math around single counter.
+     for _,el in ipairs{{1,2,3}, {1,2,6}, {1,5,3}, {1,5,6},
+                        {4,2,3}, {4,2,6}, {4,5,3}, {4,5,6}} do
+        local i,j,k = unpack(el)
+        local lnode, lambda = line_intersect(x + colbox[i],
+                                             y + colbox[j],
+                                             z + colbox[k],
+                                             dx,dy,dz, clear)
+        if lnode then
+           local x,y,z = x + dx*lambda, y + dy*lambda, z + dz*lambda
+           local nx,ny,nz = figure_normal(x,y,z)
+           -- TODO sound.
+           
+           if nx == 0 and ny == 0 and nz ==0 then
+              nx,nx,nz = -dx,-dy,-dz
+           end
+
+           
+        end
+     end
+  end,
 }
 
 -- Corresponding item.

@@ -28,10 +28,17 @@ local BallItem = {
 for k,v in pairs(jp.ThrowItem) do BallItem[k] = BallItem[k] or v end
 
 local Ball = {
-   Item = BallItem,
+   Item = BallItem,  -- TODO probably loading a bit much onto the register..
    throw_vy = 4, throw_v = 10,
+   gravity = gravity,
+
+   physical = true,
+   collide_with_object  =true,
+   collisionbox = {-0.5,-0.5,-0.5, 0.5,0.5,0.5},
+   weight = 4,
+
 --   description = "Ball",
-   on_step = function(self, ts)  -- TODO really, the base
+   on_step2 = function(self, ts)  -- TODO really, the base
       local object = self.object
       
       local to_v = jp.apply_air_friction(object:getvelocity(), air_friction, ts)
