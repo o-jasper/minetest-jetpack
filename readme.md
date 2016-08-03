@@ -1,4 +1,10 @@
-## TODO
+Use `/giveme hoverboard` an `/giveme jetpack`(and `/giveme ball`)
+once installed and running.
+
+Think I remember left click with the object throws it, right on object
+in world picks it up again, and left uses it. Flying is with up/down etc.
+
+## TODO (note: somewhat in the issues)
 
 Collision not quite right yet... Actually look in the direction of movement, for one.
 
@@ -7,6 +13,10 @@ Collision not quite right yet... Actually look in the direction of movement, for
 * A function representing bouncing off that.(done)
 
 Jetpack:
+* Decided for it not to use alternative physics. Collisions fine.
+
+  Stumpeningly can't seem to give it friction with floor.
+
 * Add getting hurt. Crunchy/auch sounds too, depending on case.
 * Better thrust sounds.
 * hitting stuff sounds.
@@ -19,6 +29,7 @@ Jetpack:
 * (optional)vibration.
 
 Hoverboard:
+* Collisions cause a mess sometimes.(better collision, normal finding)
 * Convert some of the vertical movement to horizontal when landing.
   (*relative* to surface)
 * Pushing in discrete steps? Max speed based on foot speed.(with sounds)
