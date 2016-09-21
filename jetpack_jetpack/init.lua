@@ -29,6 +29,8 @@ local rates = use_c.rates
 local gravity, air_friction = use_c.gravity, use_c.air_friction
 local ground_bounce, ground_friction = use_c.ground_bounce, use_c.ground_friction
 
+local walk_force = 1
+
  -- Somewhat randomly times thrust sounds.
 local function thrust_sounds(self, ts)
    local function new_t() return 0.1+math.log(1+math.random()/60) end
@@ -46,13 +48,19 @@ local function jetpack_timestep(self, ts)
    local to_v = jp.apply_air_friction(object:getvelocity(), air_friction/mass, ts)
    to_v.y = to_v.y - gravity*ts
 
+   local pos = object:getpos()
+   local x,y,z = pos.x, pos.y,pos.z
+   local feet = not jp.clear_place(x, y, z-1)  -- Feets on ground.
+
+   local any = false
    if driver then -- TODO emit particles.
+      local drown = not jp.clear_place(x, y, z)
+
       object:set_detach()
       jp.ThrowObj_attach(driver, object)
 
       local cont = driver:get_player_control()
 
-      local any = false
       local function add_if(which)
          if cont[which] then
             any = true
@@ -62,52 +70,34 @@ local function jetpack_timestep(self, ts)
          end
       end
       -- Direction of thrust based on direction of input.
-      local u = add_if("jump") + add_if("sneak")
-      local f = add_if("up") + add_if("down")
+      local u = add_if("jump")  + add_if("sneak")
+      local f = add_if("up")    + add_if("down")
       local r = add_if("right") + add_if("left")
 
+      local a = driver:get_look_yaw()
+      object:setyaw(a)
+
       if any then -- Any thrust.
-         thrust_sounds(self, ts)
+         if not drown then
+            thrust_sounds(self, ts)
 
-         local factor = thrust*ts/math.sqrt(u*u + f*f + r*r) -- Normalize and acceleration.
-         local u,f,r = factor*u, factor*f, factor*r
+            local factor = thrust*ts/math.sqrt(u*u + f*f + r*r) -- Normalize and acceleration.
+            local u,f,r = factor*u, factor*f, factor*r
 
-         local a = driver:get_look_yaw()
-         local dx,dz = math.cos(a), math.sin(a)
-         to_v = {
-            x = to_v.x + dz*r + dx*f,
-            y = to_v.y + u,
-            z = to_v.z - dx*r + dz*f,dw
-         }
+            local dx,dz = math.cos(a), math.sin(a)
+            to_v = {
+               x = to_v.x + dz*r + dx*f,
+               y = to_v.y + u,
+               z = to_v.z - dx*r + dz*f,dw
+            }
+         --else  -- TODO gurgle sound
+         end
       end
    end
-
-   -- Figure if flying into anything
-   local pos = object:getpos()
-   local x,y,z = pos.x, pos.y,pos.z
-   local nx,ny,nz, any, all = 0,0,0, false, true
-   local function block_rel(dx,dy,dz)
-      -- TODO anything you walk through, also prefer if some things more friction?
-      if not jp.clear_place(x+dx, y+dy, z+dz) then
-         any = true
-         nx, ny, nz = nx - dx, ny - dy, nz - dz
-         return true
-      else
-         all = false
-      end
-   end
-   local d,dh,f,b = 1,0.5, ground_friction, ground_bounce
-   if block_rel( 0, -d,  0) and driver then
-      f = 10  -- Mushy parts handle this
-      b = 0
-   end
-
-   block_rel(0,  d, 0)
-   block_rel(-dh, 0,  0)  block_rel(dh, 0, 0)
-   block_rel( 0,  0, -dh) block_rel(0,  0, dh)
-
-   if any and not all then
-      to_v = jp.normal_collide({x=nx, y=ny, z=nz}, f,b, to_v)
+   if feet then  -- TODO doesnt work.. Does not make sense..
+      --local f = any and 0.95 or 0.7
+      to_v.x = 0 --to_v.x*f
+      to_v.z = 0 --to_v.z*f
    end
 
    -- TODO walk if under-speed.(lower speed limit walking rate.)
@@ -123,7 +113,20 @@ local JetpackItem = {
 for k,v in pairs(jp.ThrowItem) do JetpackItem[k] = JetpackItem[k] or v end
 
 local Jetpack = {
+   visual="mesh",
+   mesh="jetpack.obj",
+   textures={"jetpack_tex.png"},
+
    Item = JetpackItem,
+
+   physical = true,
+   collide_with_object  =true,
+   collisionbox = {-0.5,-0.5,-0.5, 0.5,0.5,0.5},
+   weight = 10,
+
+   makes_footstep_sound=true,
+   automatic_rotate=true,
+
 --   description = "Jetpack",
    on_step = jetpack_timestep
 }

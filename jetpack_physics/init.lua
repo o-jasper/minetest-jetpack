@@ -1,3 +1,5 @@
+-- Also contains pretty general phusics.
+--
 -- jetpack - wooosh
 
 -- THIS MOD CODE AND TEXTURES LICENSED
@@ -140,7 +142,7 @@ end
 local function ThrowObj_attach(driver, object, how)  -- Helper.
    local a = driver:get_look_yaw()
    local function default_how()
-      local d = 5
+      local d = 0
       return {{x=d*math.cos(a),y=0,z=d*math.sin(a)}, {x=0,y=0,z=0}}
    end
    local how = how or default_how()
@@ -150,7 +152,7 @@ end
 
 -- Object that you kindah throw to place, and just falls down.
 local ThrowObj = {
-   throw_v = 2, throw_vy = 1,
+  throw_v = 2, throw_vy = 1,
 
   on_activate = function(self, staticdata, dtime_s)
      self.object:set_armor_groups({immortal=1})
@@ -168,7 +170,9 @@ local ThrowObj = {
         clicker:set_detach()
      elseif not self.driver then
         self.driver = clicker
-        ThrowObj_attach(clicker, self.object, nil)
+        local Class = minetest.registered_entities[self.name]
+        print(Class.attach_how)
+        ThrowObj_attach(clicker, self.object, Class.attach_how)
      end
   end,
 
@@ -181,8 +185,8 @@ local ThrowObj = {
      end
   end,
 
-  on_step2 = function(self, ts)
-     local Class = minetest.registered_entities[name]
+  on_step2 = function(self, ts)  -- TODO
+     local Class = minetest.registered_entities[self.name]
      local colbox = Class.collisionbox
 
      local to_v = jp.apply_air_friction(object:getvelocity(), air_friction, ts)
@@ -224,7 +228,7 @@ local ThrowItem = {
 	on_use = function(itemstack, placer, pointed_thing)
      -- Just throw it a bit.
      local pos,dir = placer:getpos(), placer:get_look_dir()
-     pos.x,pos.y,pos.z = pos.x + dir.x,pos.y + dir.y + 1,pos.z + dir.z
+     pos.x,pos.y,pos.z = pos.x + dir.x,pos.y + dir.y + 1.5,pos.z + dir.z
 
      local name = itemstack:get_name()
      local obj = minetest.env:add_entity(pos, name)
