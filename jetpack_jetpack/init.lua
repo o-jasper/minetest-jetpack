@@ -19,6 +19,12 @@ local configs = {
       rates = { left = -2, right = 2, up=6, down=-2, jump=6, sneak=-4 },
       gravity = 10, air_friction = 0.1,
       ground_bounce = 0.5, ground_friction = 0.1,
+
+      thrust_sound_period = 1, particle_period = 1,
+
+      fire_tex = "tnt_boom.png",
+      -- TODO probably want vaguer than TNT version.
+      smoke_tex = "tnt_smoke.png", heavy_smoke_tex = "tnt_smoke.png",
    }
 }
 local use_c = jetpack_configs("jetpack", configs)
@@ -31,13 +37,59 @@ local ground_bounce, ground_friction = use_c.ground_bounce, use_c.ground_frictio
 
 local walk_force = 1
 
+-- TODO neater..
+local function new_t() return 0.1+math.log(1+math.random()/60) end
+
  -- Somewhat randomly times thrust sounds.
 local function thrust_sounds(self, ts)
-   local function new_t() return 0.1+math.log(1+math.random()/60) end
-   self.t = (self.t or new_t()) - ts
+   self.t = (self.t or -1) - ts
    if self.t < 0 then
-      self.t = new_t()
-      minetest.sound_play({name = "fire_extinguish_flame"}, { pos = pos })
+      self.t = use_c.thrust_sound_period*new_t()
+      minetest.sound_play({name = "fire_extinguish_flame"}, { pos = self.object:getpos() })
+   end
+end
+
+-- TODO smoke-filled air blocks possible?
+local function thrust_particles(self, pos, vel, ts)
+   self.t_p = (self.t_p or -1) - ts
+   if self.t_p < 0 then
+      self.t_p = use_c.particle_period*new_t()
+
+      local radius = 2*(1+math.random())
+      minetest.add_particle{
+            pos = pos,
+            velocity = vel,
+            acceleration = vector.new(), expirationtime = 0.4,
+            size = radius,
+            collisiondetection = false,
+            vertical = false,
+            texture = use_c.fire_tex,
+      }
+
+      local ppos = { x=pos.x, y=pos.y-0.5, z=pos.z }
+      local aa = 4
+      minetest.add_particlespawner{
+            amount = 8, time = 2,
+            minpos = pos, maxpos = pos,
+            minvel = vel, maxvel = vel,
+
+            minacc = {x=-aa,y=-aa,z=-aa}, maxacc = {x=aa,y=aa,z=aa},
+            minexptime = 1, maxexptime = 2.5,
+            minsize = radius * 1, maxsize = radius * 3,
+            texture = use_c.heavy_smoke_tex,
+
+            collisiondetection=true,
+      }
+      minetest.add_particlespawner{
+            amount = 32, time = 0.5,
+            minpos = pos, maxpos = pos,
+            minvel = vel, maxvel = vel,
+
+            minacc = {x=-aa,y=-aa,z=-aa}, maxacc = {x=aa,y=aa,z=aa},
+            minexptime = 1, maxexptime = 2.5,
+            minsize = radius * 1, maxsize = radius * 3,
+            texture = use_c.heavy_smoke_tex
+      }
    end
 end
 
@@ -50,7 +102,7 @@ local function jetpack_timestep(self, ts)
 
    local pos = object:getpos()
    local x,y,z = pos.x, pos.y,pos.z
-   local feet = not jp.clear_place(x, y, z-1)  -- Feets on ground.
+   local feet = not jp.clear_place(x, y-1, z)  -- Feets on ground.
 
    local any = false
    if driver then -- TODO emit particles.
@@ -83,21 +135,40 @@ local function jetpack_timestep(self, ts)
 
             local factor = thrust*ts/math.sqrt(u*u + f*f + r*r) -- Normalize and acceleration.
             local u,f,r = factor*u, factor*f, factor*r
-
             local dx,dz = math.cos(a), math.sin(a)
+
+            local tf = 40
+            thrust_particles(self, pos,
+                             {  x = to_v.x - tf*(dz*r + dx*f),
+                                y = to_v.y - tf*u,
+                                z = to_v.z + tf*(dx*r - dz*f)
+                             }, ts)
+
             to_v = {
                x = to_v.x + dz*r + dx*f,
                y = to_v.y + u,
-               z = to_v.z - dx*r + dz*f,dw
+               z = to_v.z - dx*r + dz*f
             }
          --else  -- TODO gurgle sound
          end
       end
    end
    if feet then  -- TODO doesnt work.. Does not make sense..
-      --local f = any and 0.95 or 0.7
-      to_v.x = 0 --to_v.x*f
-      to_v.z = 0 --to_v.z*f
+
+      if not self.last_step or
+         driver and (self.last_step.x - pos.x)^2 + (self.last_step.y - pos.y)^2 > 1
+      then
+         self.last_step = { x=pos.x, y=pos.y }   -- TODO pick right sound?
+         minetest.sound_play({name = "default_dirt_footstep"},
+            { pos = { x=pos.x, y=pos.y-0.5, z=pos.z } })
+      end
+      local v = math.sqrt(to_v.x^2 + to_v.z^2)
+      local v_reduce = 0.1
+      local f = v<0.1 and 0 or (v - v_reduce)/v
+
+      to_v = { x = to_v.x*f, z = to_v.z*f, y = to_v.y }
+   else
+      self.last_step = nil
    end
 
    -- TODO walk if under-speed.(lower speed limit walking rate.)
@@ -121,10 +192,10 @@ local Jetpack = {
 
    physical = true,
    collide_with_object  =true,
-   collisionbox = {-0.5,-0.5,-0.5, 0.5,0.5,0.5},
+   collisionbox = {-0.3,-0.5,-0.3, 0.3,0.5,0.3},
    weight = 10,
 
-   makes_footstep_sound=true,
+   makes_footstep_sound=false,
    automatic_rotate=true,
 
 --   description = "Jetpack",
@@ -137,3 +208,26 @@ minetest.register_craftitem("jetpack_jetpack:jetpack", JetpackItem)
 minetest.register_entity("jetpack_jetpack:jetpack", Jetpack)
 
 minetest.register_alias("jetpack",    "jetpack_jetpack:jetpack")
+
+-- Crafting.
+if true then -- minetest.get_modpath("mesecon") then  -- TODO ...
+--   local function got(y, n) return minetest.get_modpath("mesecon") and y or n or "" end
+
+   minetest.register_craft{  -- TODO want it kindah expensive?
+      output = "jetpack_jetpack:jetpack 1",
+      recipe = {
+         {"",  --"mesecons_insulated:insulated_off",
+          "vessels:steel_bottle",
+          "vessels:steel_bottle",
+         },
+         {"", --"mesecons_switch:mesecon_switch_off",
+          "default:steelblock",
+          "", --"mesecons_walllever:wall_lever",
+         },
+         {"", --"mesecons_insulated:insulated_off",
+          "default:steelblock",
+          "", ---"mesecons_insulated:insulated_off",
+         }
+      }
+   }
+end

@@ -153,6 +153,7 @@ end
 -- Object that you kindah throw to place, and just falls down.
 local ThrowObj = {
   throw_v = 2, throw_vy = 1,
+  min_mount_wait = 0.3,
 
   on_activate = function(self, staticdata, dtime_s)
      self.object:set_armor_groups({immortal=1})
@@ -169,10 +170,12 @@ local ThrowObj = {
         self.driver = nil
         clicker:set_detach()
      elseif not self.driver then
-        self.driver = clicker
         local Class = minetest.registered_entities[self.name]
-        print(Class.attach_how)
-        ThrowObj_attach(clicker, self.object, Class.attach_how)
+        -- Can't immediately use it.
+        if (self.creation_time or 0) + Class.min_mount_wait < minetest.get_gametime() then
+           self.driver = clicker
+           ThrowObj_attach(clicker, self.object, Class.attach_how)
+        end
      end
   end,
 
@@ -233,6 +236,8 @@ local ThrowItem = {
      local name = itemstack:get_name()
      local obj = minetest.env:add_entity(pos, name)
      obj:get_luaentity().name = name
+     obj:get_luaentity().creation_time = minetest.get_gametime()
+
      local Class = minetest.registered_entities[name]
      local v, vy = Class.throw_v, Class.throw_vy
      local spd = { x=0,y=0,z=0 } -- placer:getvelocity() (ah well)
